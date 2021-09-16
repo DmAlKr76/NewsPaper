@@ -7,10 +7,14 @@ News
 {% endblock title %}
 
 {% block content %}
-    <h1>Все новости</h1>
+    <h1>Поиск новостей</h1>
     <h3>Количество новостей: {{ news|length }}</h3>
     <hr>
     {% if news %}
+        <form method="GET">
+            {{ filter.form }}
+            <input type="submit" value="Найти">
+        </form>
         <table>
             <tr>
                 <td>
@@ -20,9 +24,13 @@ News
                     Дата публикации
                 </td>
                 <td>
-                    Превью
+                    Автор
+                </td>
+                <td>
+                    Текст
                 </td>
             </tr>
+            {% for post in filter.qs %}
         {% for news_ in news %}
             <tr>
                 <td>
@@ -30,6 +38,9 @@ News
                 </td>
                 <td>
                     {{ news_.dateCreation|date:'d M Y' }}
+                </td>
+                <td>
+                    {{ news_.postAuthor.authorUser.username }}
                 </td>
                 <td>
                     {{ news_.text|censor|truncatechars:50 }}
@@ -51,7 +62,7 @@ News
             {% for num in page_obj.paginator.page_range %}
                 {% if page_obj.number == num %}
                     <a>{{ num }}</a>
-                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                {% elif num > page_obj.number|add:'-1' and num < page_obj.number|add:'1' %}
                     <a href="?page={{ num }}">{{ num }}</a>
                 {% endif %}
             {% endfor %}
@@ -66,5 +77,4 @@ News
     {% else %}
         <h2>Новостей нет! :(</h2>
     {% endif %}
-
 {% endblock content %}
