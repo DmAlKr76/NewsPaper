@@ -8,4 +8,5 @@ urlpatterns = [
     path('add/', PostAdd.as_view(), name='news_add'),
     path('<int:pk>/edit/', PostEdit.as_view(), name='news_edit'),
     path('<int:pk>/delete/', PostDelete.as_view(), name='news_delete'),
+
 ]

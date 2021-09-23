@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.db.models import Sum
-
+from django.views.generic.edit import CreateView
 
 class Author(models.Model):
     authorUser = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -87,3 +87,4 @@ class Comment(models.Model):
     def dislike(self):
         self.rating -= 1
         self.save()
+
