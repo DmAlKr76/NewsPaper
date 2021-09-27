@@ -3,16 +3,34 @@ from .models import Post, Category, Author
 from .filters import PostFilter
 from .forms import PostForm
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.core.paginator import Paginator
-from django.shortcuts import redirect
-from django.contrib.auth.models import Group, User
-from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect, render, get_object_or_404
+from . import tasks
+import datetime
 
-class PostsList(ListView):
+
+class SubscribeView(LoginRequiredMixin, View):
+    def get(self, request, category_id, *args, **kwargs):
+        user = self.request.user
+        category = Category.objects.get(pk=category_id)
+        if not category.subscribers.filter(pk=user.pk):
+            is_subscriber = False
+            category.subscribers.add(user)
+        else:
+            is_subscriber = True
+
+        context = {
+            'categories': Category.objects.all(),
+            'category': Category.objects.get(pk=category_id),
+            'is_subscriber': is_subscriber
+        }
+        return render(request, 'subscribe_category.html', context)
+
+
+class PostsList(LoginRequiredMixin, ListView):
     model = Post
-    template_name = 'news.html'
+    template_name = 'news/news.html'
     context_object_name = 'news'
-    queryset = Post.objects.order_by('-id')
+    queryset = Post.objects.order_by('-dateCreation')
     paginate_by = 10
 
     def get_query_data(self, **kwargs):
@@ -22,78 +40,86 @@ class PostsList(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['is_not_authors'] = not self.request.user.groups.filter(name='authors').exists()
-        context['is_not_authorized'] = not self.request.user.is_authenticated
+        context['posts_amount'] = len(Post.objects.all())
+        context['categories'] = Category.objects.all()
+        return context
+
+class PostsCategory(PostsList):
+    template_name = 'news/news_category.html'
+
+    def get_queryset(self):
+        return Post.objects.filter(category=self.kwargs['category_id'])
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['category'] = None
         return context
 
 
 class PostSearch(ListView):
     model = Post
-    template_name = 'news_search.html'
+    template_name = 'news/news_search.html'
     context_object_name = 'news_search'
-    ordering = ['-Post_time']
+    queryset = Post.objects.order_by('-dateCreation')
     paginate_by = 10
 
-    def get_filter(self):
-        return PostFilter(self.request.GET, queryset=super().get_queryset())
 
-    def get_queryset(self):
-        return self.get_filter().qs
-
-#    def get_context_data(self, **kwargs):
-#        context = super().get_context_data(**kwargs)
-#        context['filter'] = PostFilter(self.request.GET,
-#                        queryset=self.get_queryset())
-#        return context
-
-    def get_context_data(self, *args, **kwargs):
-        return {
-        **super().get_context_data(*args, **kwargs),
-        "filter": self.get_filter(),
-        }
-
-    def get_index_data(self, **kwargs):
-        index = super().get_context_data(**kwargs)
-        index['is_not_authorized'] = not self.request.user.groups.filter(name='common').exists()
-        return index
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['posts_amount'] = len(Post.objects.all())
+        context['filter'] = PostFilter(self.request.GET, queryset=self.get_queryset())
+        context['categories'] = Category.objects.all()
+        return context
 
 
 class PostDetail(LoginRequiredMixin, DetailView):
     model = Post
-    template_name = 'news_.html'
+    template_name = 'news/news_.html'
     context_object_name = 'news_'
     queryset = Post.objects.all()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['is_not_authors'] = not self.request.user.groups.filter(name='authors').exists()
-        context['is_not_authorized'] = not self.request.user.groups.filter(name='common').exists()
+        context['categories'] = Category.objects.all()
+        context['post_categories'] = self.model.category
         return context
+
 
 class PostAdd(PermissionRequiredMixin, CreateView):
     model = Post
-    template_name = 'news_add.html'
+    template_name = 'news/news_add.html'
     form_class = PostForm
     permission_required = ('news.add_post',)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context['categories'] = Category.objects.all()
         return context
 
     def post(self, request, *args, **kwargs):
-        form = self.form_class(request.POST)
-        if form.is_valid():
-            form.save()
-        return super().get(request, *args, **kwargs)
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['is_not_authors'] = not self.request.user.groups.filter(name='author').exists()
-        context['is_not_authorized'] = not self.request.user.is_authenticated
-        return context
+        user = request.user
+        author = Author.objects.get(account=user)
+
+        last_24_hours_posts = Post.objects.filter(author=author, time_of_creation__gt=datetime.date.today())
+        if last_24_hours_posts.count() >= 3:
+            return redirect('/users/34/')
+
+        post_categories = request.POST.getlist('category')
+        post = Post(
+            author=author,
+            post_type=request.POST['post_type'],
+            title=request.POST['title'],
+            text=request.POST['text']
+        )
+        post.save(ctg=post_categories)
+
+        return redirect('/news/')
+
 
 class PostEdit(PermissionRequiredMixin, UpdateView):
-    template_name = 'news_edit.html'
+    template_name = 'news/news_edit.html'
+    model = Post
     form_class = PostForm
     permission_required = ('news.change_post',)
 
@@ -103,39 +129,35 @@ class PostEdit(PermissionRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['is_not_authors'] = not self.request.user.groups.filter(name='author').exists()
+        context['categories'] = Category.objects.all()
         return context
 
-    def get_index_data(self, **kwargs):
-        index = super().get_context_data(**kwargs)
-        index['is_not_authorized'] = self.request.user.groups.filter(name='common').exists()
-        return index
 
 class PostDelete(PermissionRequiredMixin, DeleteView):
-    template_name = 'news_delete.html'
+    template_name = 'news/news_delete.html'
+    context_object_name = 'news_'
+    model = Post
     queryset = Post.objects.all()
     permission_required = ('news.delete_post',)
     success_url = '/news/'
 
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['is_not_authors'] = not self.request.user.groups.filter(name='author').exists()
+        context['categories'] = Category.objects.all()
         return context
 
-    def get_index_data(self, **kwargs):
-        index = super().get_context_data(**kwargs)
-        index['is_not_authorized'] = not self.request.user.groups.filter(name='common').exists()
-        return index
+def filter_post(request):
+    f = PostFilter(request.GET, queryset=Post.objects.all())
+    return render(request, 'search.html', {'filter': f})
 
 
-class ProtectedView(LoginRequiredMixin, TemplateView):
-    template_name = 'news_edit.html'
+class Subscribe(LoginRequiredMixin, View):
+    def post(self, request, **kwargs):
+        user = request.user
+        category = get_object_or_404(Category, id=kwargs['pk'])
+        if category.subs.filter(username=request.user).exists():
+            category.subs.remove(user)
+        else:
+            category.subs.add(user)
 
-@login_required
-def upgradeMe(request):
-    user = request.user
-    author_group = Group.objects.get(name='authors')
-    if not request.user.groups.filter(name='authors').exists():
-        author_group.user_set.add(user)
-    return redirect('/')
+        return redirect(request.META['HTTP_REFERER'])

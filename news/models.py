@@ -25,8 +25,11 @@ class Author(models.Model):
 
 class Category(models.Model):
     name = models.CharField(max_length=64, unique=True)
+    subscribers = models.ManyToManyField(User)
+
     def __str__(self):
         return f'{self.name}'
+
 
 
 class Post(models.Model):
@@ -53,7 +56,7 @@ class Post(models.Model):
         self.save()
 
     def preview(self):
-        return self.text[0:123] + '...'
+        return f'{self.text[0:123]}...'
 
     def __str__(self):
         return f'{self.title} {self.dateCreation} {self.text}'
@@ -75,10 +78,7 @@ class Comment(models.Model):
     rating = models.SmallIntegerField(default=0)
 
     def __str__(self):
-        try:
-            return self.commentPost.author.authorUser.username
-        except:
-            return self.commentUser.username
+        return f"text: {self.text} and rating: {self.rating}"
 
     def like(self):
         self.rating += 1
@@ -88,3 +88,10 @@ class Comment(models.Model):
         self.rating -= 1
         self.save()
 
+
+class Subscriber(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.category.title}"

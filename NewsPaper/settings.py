@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 
 from pathlib import Path
 import os
+from celery.schedules import crontab
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,7 +39,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
     'django.contrib.sites',
     'django.contrib.flatpages',
     'accounts',
@@ -50,6 +50,8 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'sign',
     'protect',
+    'django_apscheduler',
+    #'news.apps.NewsConfig',
 ]
 
 SITE_ID = 1
@@ -62,7 +64,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-
     'django.contrib.flatpages.middleware.FlatpageFallbackMiddleware',
 ]
 
@@ -165,3 +166,13 @@ ACCOUNT_AUTHENTICATION_METHOD = 'email'
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 
 ACCOUNT_FORMS = {'signup': 'sign.models.СommonSignupForm'}
+
+EMAIL_HOST = 'smtp.yandex.ru'
+EMAIL_HOST_USER = 'kryglov.d@yandex.ru'
+EMAIL_HOST_PASSWORD = ''
+EMAIL_PORT = 465
+EMAIL_USE_SSL = True
+DEFAULT_FROM_EMAIL = 'kryglov.d@yandex.ru'
+
+APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"
+APSCHEDULER_RUN_NOW_TIMEOUT = 20  # Seconds
