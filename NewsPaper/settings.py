@@ -176,3 +176,17 @@ DEFAULT_FROM_EMAIL = 'kryglov.d@yandex.ru'
 
 APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"
 APSCHEDULER_RUN_NOW_TIMEOUT = 20  # Seconds
+
+
+CELERY_BROKER_URL = 'redis://redis:6379'
+CELERY_RESULT_BACKEND = 'redis://redis:6379'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+CELERY_BEAT_SCHEDULE = {
+    'send_to_subscribers': {
+        'task': 'news.tasks.send_to_subscribers',
+        'schedule': crontab(hour=8, minute=00, day_of_week=1)
+    }
+}
