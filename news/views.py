@@ -6,6 +6,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMix
 from django.shortcuts import redirect, render, get_object_or_404
 from . import tasks
 import datetime
+from django.core.cache import cache
+from django.views.decorators.cache import cache_page
 
 
 class SubscribeView(LoginRequiredMixin, View):
@@ -77,6 +79,15 @@ class PostDetail(LoginRequiredMixin, DetailView):
     template_name = 'news/news_.html'
     context_object_name = 'news_'
     queryset = Post.objects.all()
+
+
+    def get_object(self, *args, **kwargs):
+        obj = cache.get(f'post-{self.kwargs["pk"]}', None)
+
+        if not obj:
+            obj = super().get_object(**kwargs)
+            cache.set(f'post-{self.kwargs["pk"]}', obj)
+        return obj
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

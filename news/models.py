@@ -1,7 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.db.models import Sum
-from django.views.generic.edit import CreateView
+#from django.views.generic.edit import CreateView
+from django.urls import reverse
+from django.core.cache import cache
 
 class Author(models.Model):
     authorUser = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -47,6 +49,16 @@ class Post(models.Model):
     text = models.TextField()
     rating = models.SmallIntegerField(default=0)
 
+    def __str__(self):
+        return f'{self.title} {self.dateCreation} {self.text}'
+
+    def get_absolute_url(self):
+        return reverse('news_one', kwargs={'pk': self.pk})
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        cache.delete(f'post-{self.pk}')
+
     def like(self):
         self.rating += 1
         self.save()
@@ -57,9 +69,6 @@ class Post(models.Model):
 
     def preview(self):
         return f'{self.text[0:123]}...'
-
-    def __str__(self):
-        return f'{self.title} {self.dateCreation} {self.text}'
 
 
 class PostCategory(models.Model):
