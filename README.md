@@ -1,0 +1,1 @@
+# Проект новостного портала на Django Rest Framework
